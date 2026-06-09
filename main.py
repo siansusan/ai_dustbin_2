@@ -2,7 +2,7 @@
 main.py
 -------
 Smart Waste Bin — Updated Hardware Configuration
-Sensors : Ultrasonic (HC-SR04) + MQ Gas Sensor
+Sensors : Ultrasonic (HC-SR04)
 Actuator: Single tilt servo (wet=right/135°, dry=left/45°, neutral=90°)
 
 FLOW:
@@ -11,7 +11,6 @@ FLOW:
   3. MobileNetV2 classifies → wet or dry
   4. Servo tilts to correct side
   5. After 3 seconds → servo returns to neutral
-  6. MQ gas sensor monitors continuously in background
 
 Run on Pi:  python main.py
 Simulate:   python main.py --simulate
@@ -41,7 +40,6 @@ if not args.simulate:
         TRIG_PIN       = 23     # Ultrasonic TRIG
         ECHO_PIN       = 24     # Ultrasonic ECHO
         SERVO_PIN      = 17     # Tilt servo signal pin
-        MQ_SPI_CH      = 0      # MQ gas sensor on MCP3008 channel 0
 
         # ── GPIO setup ────────────────────────────────────────────────────────
         GPIO.setup(TRIG_PIN,  GPIO.OUT)
@@ -89,8 +87,6 @@ else:
     # ── Simulation stubs ──────────────────────────────────────────────────────
     import random
 
-    MQ_SPI_CH = 0
-
     def read_ultrasonic():
         dist = random.uniform(5, 35)
         print(f"    [SIM] Ultrasonic → {dist:.1f} cm")
@@ -115,7 +111,6 @@ SERVO_WET     = 135   # Tilt right → wet compartment
 
 # ─── Thresholds ───────────────────────────────────────────────────────────────
 PERSON_THRESHOLD_CM = 20    # Trigger if person within 20 cm
-GAS_THRESHOLD       = 600   # MQ ADC value — above this = gas alert
 HOLD_SECONDS        = 3     # How long servo stays tilted before returning
 
 # ─── Load classifier ──────────────────────────────────────────────────────────
@@ -153,13 +148,6 @@ def tilt_for_waste(label):
     print("  → Returning to NEUTRAL (90°)")
     set_servo_angle(SERVO_NEUTRAL)
 
-def check_gas():
-    """Read MQ sensor and alert if gas level is high."""
-    gas_val = read_adc(MQ_SPI_CH)
-    if gas_val > GAS_THRESHOLD:
-        print(f"  [ALERT] High gas level detected! MQ sensor = {gas_val}")
-    return gas_val
-
 def run_interactive_simulation():
     """Run interactive simulation with live webcam feed and visual indicators."""
     import math
@@ -176,7 +164,6 @@ def run_interactive_simulation():
     print("  - Press [D] to capture & save frame as DRY waste training image.")
     print("  - Press [W] to capture & save frame as WET waste training image.")
     print("  - Press [C] to toggle Continuous classification.")
-    print("  - Press [G] to toggle High Gas Alert simulation.")
     print("  - Press [Q] or [ESC] to Quit.")
     print("="*55 + "\n")
 
@@ -192,8 +179,6 @@ def run_interactive_simulation():
     servo_angle = SERVO_NEUTRAL
     servo_state = "NEUTRAL"
     tilt_timer = None
-    gas_value = 350
-    gas_alert_toggled = False
     continuous_mode = False
     
     last_label = None
@@ -260,14 +245,6 @@ def run_interactive_simulation():
                         low_confidence_triggered = False
                 except Exception as e:
                     print(f"[Simulation Error] Classification failed: {e}")
-
-        # ─── 3. Gas Level Simulation ─────────────────────────────────────────
-        if gas_alert_toggled:
-            # Simulated high gas value
-            gas_value = random.randint(700, 950)
-        else:
-            # Simulated normal fluctuating gas value
-            gas_value = max(150, min(590, gas_value + random.randint(-15, 15)))
 
         # ─── 4. Drawing Overlays (Premium Aesthetic) ─────────────────────────
         
@@ -346,24 +323,6 @@ def run_interactive_simulation():
         cv2.putText(display_frame, f"SERVO: {servo_state} ({servo_angle} deg)", (15, 110), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, servo_color, 1)
 
-        # Gas sensor overlay (progress bar)
-        gas_color = (0, 255, 0) if gas_value <= GAS_THRESHOLD else (0, 0, 255)
-        cv2.putText(display_frame, f"GAS VALUE: {gas_value} / 1023 ADC", (15, 135), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
-        
-        # Draw Gas Progress Bar
-        bar_x, bar_y, bar_w, bar_h = 15, 145, 150, 10
-        cv2.rectangle(display_frame, (bar_x, bar_y), (bar_x + bar_w, bar_y + bar_h), (50, 50, 50), -1)
-        fill_w = int(bar_w * (gas_value / 1023.0))
-        cv2.rectangle(display_frame, (bar_x, bar_y), (bar_x + fill_w, bar_y + bar_h), gas_color, -1)
-
-        # E. Blinking Gas Alert Banner
-        if gas_value > GAS_THRESHOLD:
-            if int(time.time() * 2) % 2 == 0:
-                cv2.rectangle(display_frame, (0, 170), (w, 205), (0, 0, 255), -1)
-                cv2.putText(display_frame, "!!! DUSTBIN GAS ALERT !!! (TOXIC/FULL)", (w // 2 - 190, 193), 
-                            cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 255, 255), 2)
-
         # F. Classification Result Display (Bottom Center Overlay)
         if last_label is not None:
             res_box_w, res_box_h = 360, 95
@@ -426,9 +385,6 @@ def run_interactive_simulation():
             continuous_mode = not continuous_mode
             last_label = None
             print(f"[Simulation] Continuous mode: {'ON' if continuous_mode else 'OFF'}")
-        elif key == ord('g') or key == ord('G'):
-            gas_alert_toggled = not gas_alert_toggled
-            print(f"[Simulation] Gas alert simulated: {'ON' if gas_alert_toggled else 'OFF'}")
         elif (key == ord('d') or key == ord('D') or key == ord('w') or key == ord('W')):
             import os
             is_wet = (key == ord('w') or key == ord('W'))
@@ -507,9 +463,6 @@ else:
     print("[System] Smart Waste Bin running. Press Ctrl+C to stop.\n")
     try:
         while True:
-            # ── 1. Check gas sensor continuously ─────────────────────────────────
-            gas_val = check_gas()
-
             # ── 2. Read ultrasonic ────────────────────────────────────────────────
             distance_cm = read_ultrasonic()
 
