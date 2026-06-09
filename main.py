@@ -283,15 +283,15 @@ def run_interactive_simulation():
         dial_center = (w - 75, h - 70)
         dial_r = 45
         cv2.ellipse(display_frame, dial_center, (dial_r, dial_r), 0, 180, 360, (100, 100, 100), 2)
-        cv2.putText(display_frame, "DRY", (dial_center[0] - dial_r - 10, dial_center[1] + 15), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
-        cv2.putText(display_frame, "WET", (dial_center[0] + dial_r - 10, dial_center[1] + 15), 
+        cv2.putText(display_frame, "WET", (dial_center[0] - dial_r - 10, dial_center[1] + 15), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
+        cv2.putText(display_frame, "DRY", (dial_center[0] + dial_r - 10, dial_center[1] + 15), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
         cv2.putText(display_frame, "SERVO DIAL", (dial_center[0] - 40, dial_center[1] + 35), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
 
         # Draw needle
-        rad = math.radians(180 - servo_angle)
+        rad = math.radians(servo_angle)
         needle_len = dial_r - 5
         ndx = int(math.cos(rad) * needle_len)
         ndy = int(-math.sin(rad) * needle_len)
