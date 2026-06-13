@@ -50,13 +50,17 @@ class WasteClassifier:
     as 'wet' or 'dry'. Returns class label + confidence score.
     """
 
-    def __init__(self, model_path: str = "models/waste_classifier.pt", device: str = "cpu"):
-        self.device = torch.device(device)
+    def __init__(self, model_path: str = "models/waste_classifier.pt", device: str = None):
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
+            
         self.model = build_model(pretrained=False)  # Don't re-download weights at inference
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
         self.model.to(self.device)
         self.model.eval()
-        print(f"[WasteClassifier] Model loaded from '{model_path}' on {device}")
+        print(f"[WasteClassifier] Model loaded from '{model_path}' on {self.device}")
 
     def classify_image(self, image) -> dict:
         """

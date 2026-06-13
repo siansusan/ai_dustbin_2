@@ -1,4 +1,5 @@
 # quick_eval.py
+import os
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -14,7 +15,15 @@ val_transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-val_data = datasets.ImageFolder("dataset/val", transform=val_transform)
+# Determine validation directory path dynamically
+val_dir = "dataset/val"
+for possible_path in ["dataset/val", "dataset/valid", "val", "valid"]:
+    if os.path.exists(possible_path):
+        val_dir = possible_path
+        break
+
+print(f"Loading validation data from '{val_dir}' ...")
+val_data = datasets.ImageFolder(val_dir, transform=val_transform)
 loader = DataLoader(val_data, batch_size=32)
 
 correct, total = 0, 0
